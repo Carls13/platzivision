@@ -1,5 +1,5 @@
+import os
 from flask import request, jsonify, Response
-import openai
 import json
 from openai import OpenAI
 
@@ -9,7 +9,8 @@ def generate_image(prompt: str, quality: str = "standard") -> str:
     Genera una imagen utilizando el modelo DALL-E 3 de OpenAI.
     """
     try:
-        response = openai.images.generate(
+        open_ai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        response = open_ai_client.images.generate(
             model="dall-e-3",
             prompt=prompt,
             quality=quality,
@@ -43,7 +44,7 @@ def chat():
                     content_parts.append({
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/png,base64,{image_data_base64}"
+                            "url": f"data:image/png;base64,{image_data_base64}"
                         }
                     })
 
@@ -57,7 +58,8 @@ def chat():
                     "content": message["content"],
                 })
         
-        client = OpenAI()
+        client = OpenAI(base_url="https://models.github.ai/inference", api_key=os.environ["GITHUB_TOKEN"])
+        MODEL_NAME = os.getenv("GITHUB_MODEL", "openai/gpt-4o")
 
         tools = [
             {
@@ -98,6 +100,9 @@ def chat():
                     )
 
                 for chunk in response:
+                    if len(chunk.choices) == 0:
+                        continue
+
                     if chunk.choices[0].delta.content:
                         yield f"data: {json.dumps({ 'content': chunk.choices[0].delta.content, 'status': 'streaming' })}\n\n"
 
